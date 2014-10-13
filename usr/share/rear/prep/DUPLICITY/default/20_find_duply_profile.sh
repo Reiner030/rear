@@ -13,7 +13,7 @@ if [ "$BACKUP_PROG" = "duplicity" ] && has_binary duply; then
     # we found the duply program; check if we can find a profile defined
     if [[ -z "$DUPLY_PROFILE" ]]; then
         # no profile pre-set; let's try to find one
-        DUPLY_PROFILE=$( find /etc/duply /root/.duply -name conf )
+        DUPLY_PROFILE=$( find /etc/duply /root/.duply -name conf 2>/dev/null)
         [[ -z "$DUPLY_PROFILE" ]] && return
 
         # there could be more then one profile present - select where SOURCE='/'
