@@ -13,7 +13,7 @@ if [ "$BACKUP_PROG" = "duplicity" ] && has_binary duply; then
     # we found the duply program; check if we can find a profile defined
     if [[ -z "$DUPLY_PROFILE" ]]; then
         # no profile pre-set; let's try to find one
-        DUPLY_PROFILE=$( find /etc/duply /root/.duply -name conf 2>/dev/null)
+        DUPLY_PROFILE=$( find /etc/duply /root/.duply -name conf )
         [[ -z "$DUPLY_PROFILE" ]] && return
 
         # there could be more then one profile present - select where SOURCE='/'
@@ -41,14 +41,6 @@ if [ "$BACKUP_PROG" = "duplicity" ] && has_binary duply; then
     # a real profile was detected - check if we can talk to the remote site
     duply "$DUPLY_PROFILE" status >&2   # output is going to logfile
     StopIfError "Duply profile $DUPLY_PROFILE status returned errors - see $LOGFILE"
-
-    # checking backup size for tempdir usage
-    MEMSIZE=`free  -m | sed -ne "s/^Mem:[[:space:]]*\([0-9]\+\)[[:space:]].*/\1/p"`
-    if [[ -z "$VOLSIZE" || $VOLSIZE -lt $MEMSIZE ]]; then
-      DUPLY_TEMPDIR=HDD
-      echo "DUPLY_TEMPDIR=$DUPLY_TEMPDIR" >> "$ROOTFS_DIR/etc/rear/rescue.conf"
-      LogIfError "Duply VOLSIZE ($VOLSIZE MB) is greater than actual RAM ($MEMSIZE MB) of host."
-    fi
 
     # we seem to use duply as BACKUP_PROG - so define as such too
     BACKUP_PROG=duply
