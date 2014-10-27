@@ -44,6 +44,11 @@ create_disk() {
     StopIfError "Disk $disk has size $disk_size, unable to continue."
 
     cat >> "$LAYOUT_CODE" <<EOF
+Log "Stop mdadm and pause udev"
+if [ -d "/dev/md" ] && ls /dev/md?* &>/dev/null; then
+    mdadm --stop /dev/md?* >&2
+fi
+type -p udevadm >/dev/null && udevadm control --stop-exec-queue || udevcontrol stop_exec_queue
 Log "Erasing MBR of disk $disk"
 dd if=/dev/zero of=$disk bs=512 count=1
 sync
@@ -52,6 +57,8 @@ EOF
     create_partitions "$disk" "$label"
 
     cat >> "$LAYOUT_CODE" <<EOF
+Log "Resume udev"
+type -p udevadm >/dev/null && udevadm control --start-exec-queue || udevcontrol start_exec_queue
 # Wait some time before advancing
 sleep 10
 
@@ -178,7 +185,12 @@ EOF
         # the start of the next partition is where this one ends
         # We can't use $end because of extended partitions
         # extended partitions have a small actual size as reported by sysfs
-        start=$(( start + ${size%B} ))
+        # in front of a logical partition should be at least 512B empty space
+        if [ -n "$MIGRATION_MODE" ] && [ "$name" = "logical" ] ; then
+            start=$(( start + ${size%B} + block_size ))
+        else
+            start=$(( start + ${size%B} ))
+        fi
 
         # round starting size to next multiple of 4096
         # 4096 is a good match for most device's block size
@@ -200,7 +212,7 @@ EOF
         if [[ "$label" = "gpt" ]] && [[ "$name" != "rear-noname" ]] ; then
             echo "parted -s $device name $number '\"$name\"' >&2" >> $LAYOUT_CODE
         fi
-    done < <(grep "^part $device" $LAYOUT_FILE)
+    done < <(grep "^part $device " $LAYOUT_FILE)
 
     # Ensure we have the new partitioning on the device.
     echo "partprobe -s $device >&2" >> "$LAYOUT_CODE"
